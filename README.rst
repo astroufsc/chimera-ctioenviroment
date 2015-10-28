@@ -28,6 +28,14 @@ Here goes an example of the configuration to be added on ``chimera.config`` file
         check_interval: 60  # minimum time between 2 queries. in seconds.
         uri: mysql://user:password@host/database/  # Database credentials.
 
+    seeingmonitor:
+        name: blanco
+        type: CTIOSeeing
+        check_interval:  60  # minimum time between 2 queries. in seconds.
+        uri: mysql://user:password@host/database/  # Database credentials.
+        type: DIMM    # Type of seeing - Can be MASS or DIMM
+
+
 
 Contact
 -------
