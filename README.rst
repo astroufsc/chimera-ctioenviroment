@@ -12,6 +12,7 @@ Installation
 
 ::
 
+    sudo apt-get install mysql-client libmysqlclient-dev  # for Ubuntu
     pip install -U git+https://github.com/astroufsc/chimera-ctioenviroment.git
 
 
