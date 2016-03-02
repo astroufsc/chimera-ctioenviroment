@@ -46,8 +46,8 @@ class CTIOWeather(WeatherBase):
             self.log.error('Error connecting to URI %s: %s' % (self["uri"], e))
             return False
 
-        result = connection.execute("select TIME_WS, WS_TEMP, WS_HUMIDITY, WS_PRESSURE, WS_WDIR, WS_WSPEED"
-                                    "  from INFOE"
+        result = connection.execute("select time, temp, hum, pres, wdir, wspeed"
+                                    "  from weather"
                                     "  order by ID DESC"
                                     "  LIMIT 1")
         row = result.fetchone()
@@ -143,4 +143,5 @@ class CTIOWeather(WeatherBase):
 
 if __name__ == '__main__':
     test = CTIOWeather()
+    test.__start__()
     print test.getMetadata(None)
