@@ -15,7 +15,6 @@ class CTIOSeeing(SeeingBase):
     __config__ = {"model": "CTIO BLANCO seeing monitor",
                   "check_interval": 3 * 60,  # in seconds
                   "uri": "mysql://user:password@host/database/",
-                  "type": 'DIMM'    # Type of seeing - Can be MASS or DIMM
                   }
 
     def __init__(self):
@@ -50,18 +49,11 @@ class CTIOSeeing(SeeingBase):
             self.log.error('Error connecting to URI %s: %s' % (self["uri"], e))
             return False
 
-        if self["TYPE"] == "DIMM":
-            cols = ("TIME_MASS", "MASS_FSEE")
-        else:
-            cols = ("TIME_DIMM", "DIMM_SEEING")
-        result = connection.execute("select %s, %s"
-                                    "  from INFOE"
-                                    "  order by ID DESC"
-                                    "  LIMIT 1" % cols)
+        result = connection.execute("select datetime, see6pt from T3_dimm order by datetime desc limit 1")
         row = result.fetchone()
 
         connection.close()
-        return row[cols[0]], row[cols[1]]
+        return row['datetime'], row['see6pt']
 
 
     @lock
@@ -83,8 +75,7 @@ class CTIOSeeing(SeeingBase):
         '''
         if self._time_sm is None:
             return None
-        dt = datetime.datetime.strptime(self._time_sm, '%Y-%m-%dUT%H:%M:%S')
-        return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        return self._time_sm.strftime("%Y-%m-%dT%H:%M:%S.%f")
 
     def getSeeing(self, unit=units.arcsec):
 
