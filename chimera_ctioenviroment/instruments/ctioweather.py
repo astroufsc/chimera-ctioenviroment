@@ -48,12 +48,12 @@ class CTIOWeather(WeatherBase):
 
         result = connection.execute("select time, temp, hum, pres, wdir, wspeed"
                                     "  from weather"
-                                    "  order by ID DESC"
+                                    "  order by time DESC"
                                     "  LIMIT 1")
         row = result.fetchone()
 
         connection.close()
-        return row["TIME_WS"], row["WS_TEMP"], row["WS_HUMIDITY"], row["WS_WSPEED"], row["WS_WDIR"], row["WS_PRESSURE"]
+        return row["time"], row["temp"], row["hum"], row["wspeed"], row["wdir"], row["pres"]
 
 
     @lock
@@ -77,10 +77,7 @@ class CTIOWeather(WeatherBase):
     def obs_time(self):
         ''' Returns a string with UT date/time of the meteorological observation
         '''
-        if self._time_ws is None:
-            return None
-        dt = datetime.datetime.strptime(self._time_ws, '%Y-%m-%dUT%H:%M:%S')
-        return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        return self._time_ws
 
     def humidity(self, unit_out=units.pct):
 
