@@ -130,8 +130,8 @@ class CTIOWeather(WeatherBase):
         Tdp = lambda T, RH: c * gamma_m(T, RH) / (b - gamma_m(T, RH))
 
         return WSValue(self.obs_time(),
-                       self._convert_units(Tdp(self.temperature(units.Celsius),
-                                               self.humidity(units.pct)),
+                       self._convert_units(Tdp(self.temperature(units.deg_C).value,
+                                               self.humidity(units.pct).value),
                                            units.Celsius, unit_out), unit_out)
 
     def pressure(self, unit_out=units.Pa):
