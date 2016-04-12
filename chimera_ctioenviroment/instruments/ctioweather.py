@@ -1,7 +1,7 @@
 import logging
 import time
 import datetime
-
+import numpy as np
 from astropy import units
 from chimera.core.exceptions import OptionConversionException
 from chimera.core.lock import lock
@@ -115,7 +115,24 @@ class CTIOWeather(WeatherBase):
             return False
 
     def dew_point(self, unit_out=units.Celsius):
-        return NotImplementedError()
+        '''
+        Calculates dew point according to the  Arden Buck equation (https://en.wikipedia.org/wiki/Dew_point).
+
+        :param unit_out:
+        :return:
+        '''
+
+        b = 18.678
+        c = 257.14  # Celsius
+        d = 235.5  # Celsius
+
+        gamma_m = lambda T, RH: np.log(RH / 100. * np.exp((b - T / d) * (T / (c + T))))
+        Tdp = lambda T, RH: c * gamma_m(T, RH) / (b - gamma_m(T, RH))
+
+        return WSValue(self.obs_time(),
+                       self._convert_units(Tdp(self.temperature(units.Celsius),
+                                               self.humidity(units.pct)),
+                                           units.Celsius, unit_out), unit_out)
 
     def pressure(self, unit_out=units.Pa):
         if self._check():
