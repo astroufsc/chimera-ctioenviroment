@@ -32,10 +32,9 @@ class CTIOSeeing(SeeingBase):
 
         self.log = logging.getLogger(logName)
 
-        self.engine = sqlalchemy.create_engine(self['uri'])
 
     def __start__(self):
-        pass
+        self.engine = sqlalchemy.create_engine(self['uri'])
 
     def _get_mysql(self):
         '''
