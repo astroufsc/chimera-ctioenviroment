@@ -72,11 +72,12 @@ class CTIOSeeing(SeeingBase):
             return True
 
     def obs_time(self):
-        ''' Returns a string with UT date/time of the meteorological observation
+        '''
+        Returns a string with UT date/time of the meteorological observation
         '''
         if self._time_sm is None:
             return None
-        return self._time_sm.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        return self._time_sm
 
     def seeing(self, unit=units.arcsec):
 
@@ -88,7 +89,7 @@ class CTIOSeeing(SeeingBase):
         else:
             return False
 
-    def airmass(self, unit):
+    def airmass(self, unit=units.dimensionless_unscaled):
 
         if unit not in self.__accepted_airmass_units__:
             raise OptionConversionException("Invalid airmass unit %s." % unit)
@@ -98,14 +99,24 @@ class CTIOSeeing(SeeingBase):
         else:
             return False
 
+    def flux(self, unit=units.count):
+
+        if unit not in self.__accepted_flux_units__:
+            raise OptionConversionException("Invalid flux unit %s." % unit)
+
+        if self._check():
+            return SeeingValue(self.obs_time(), self._convert_units(self._flux, units.count, unit), unit)
+        else:
+            return False
 
 
     def getMetadata(self, request):
 
         return [('SEEMOD', str(self['model']), 'Seeing monitor Model'),
                 ('SEETYP', str(self['type']), 'Seeing monitor type'),
-                ('SEEVAL', self.getSeeing(unit=units.arcsec).value, '[arcsec] Seeing value'),
-                ('SEEDAT', self.obs_time(), 'UT time of the seeing observation')
+                ('SEEVAL', self.seeing(unit=units.arcsec).value, '[arcsec] Seeing value'),
+                ('SEEFLU', self.flux(unit=units.count).value, '[counts] Star flux value'),
+                ('SEEDAT', self.obs_time().strftime("%Y-%m-%dT%H:%M:%S.%f"), 'UT time of the seeing observation')
                 ]
 
 
