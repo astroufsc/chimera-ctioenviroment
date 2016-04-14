@@ -12,7 +12,8 @@ from chimera.instruments.seeingmonitor import SeeingBase
 
 
 class CTIOSeeing(SeeingBase):
-    __config__ = {"model": "CTIO BLANCO seeing monitor",
+    __config__ = {"model": "CTIO BLANCO seeing monitor - DIMM2",
+                  "type": "DIMM",
                   "check_interval": 3 * 60,  # in seconds
                   "uri": "mysql://user:password@host/database/",
                   }
@@ -49,22 +50,23 @@ class CTIOSeeing(SeeingBase):
             self.log.error('Error connecting to URI %s: %s' % (self["uri"], e))
             return False
 
-        result = connection.execute("select datetime, see6pt from T3_dimm order by datetime desc limit 1")
+        result = connection.execute("select ut, seeing, airmass, flux_s1, flux_s2"
+                                    "  from DIMM2_SEEING"
+                                    " order by ut desc"
+                                    " limit 1")
         row = result.fetchone()
 
         connection.close()
-        return row['datetime'], row['see6pt']
+        return row['ut'], float(row['seeing']), float(row['airmass']), float(row['flux_s1']) + float(row['flux_s2'])
 
 
     @lock
     def _check(self):
         if time.time() >= self._last_check + self["check_interval"]:
             try:
-                time_sm, seeing = self._get_mysql()
+                self._time_sm, self._seeing, self._airmass, self._flux = self._get_mysql()
             except TypeError:
                 return False
-            self._time_sm = time_sm
-            self._seeing = float(seeing)
             self._last_check = time.time()
             return True
         else:
@@ -90,8 +92,8 @@ class CTIOSeeing(SeeingBase):
     def getMetadata(self, request):
 
         return [('SEEMOD', str(self['model']), 'Seeing monitor Model'),
-                ('SEETYP', str(self['model']), 'Seeing monitor type'),
-                ('SEEVAL', self.getSeeing(unit=units.arcsec).value, '[degC] Weather station temperature'),
+                ('SEETYP', str(self['type']), 'Seeing monitor type'),
+                ('SEEVAL', self.getSeeing(unit=units.arcsec).value, '[arcsec] Seeing value'),
                 ('SEEDAT', self.obs_time(), 'UT time of the seeing observation')
                 ]
 
