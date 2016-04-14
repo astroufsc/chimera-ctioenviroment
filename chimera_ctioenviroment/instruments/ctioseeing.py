@@ -79,7 +79,7 @@ class CTIOSeeing(SeeingBase):
             return None
         return self._time_sm.strftime("%Y-%m-%dT%H:%M:%S.%f")
 
-    def getSeeing(self, unit=units.arcsec):
+    def seeing(self, unit=units.arcsec):
 
         if unit not in self.__accepted_seeing_units__:
             raise OptionConversionException("Invalid seeing unit %s." % unit)
@@ -88,6 +88,18 @@ class CTIOSeeing(SeeingBase):
             return SeeingValue(self.obs_time(), self._convert_units(self._seeing, units.arcsec, unit), unit)
         else:
             return False
+
+    def airmass(self, unit):
+
+        if unit not in self.__accepted_airmass_units__:
+            raise OptionConversionException("Invalid airmass unit %s." % unit)
+
+        if self._check():
+            return SeeingValue(self.obs_time(), self._convert_units(self._airmass, units.dimensionless_unscaled, unit), unit)
+        else:
+            return False
+
+
 
     def getMetadata(self, request):
 
