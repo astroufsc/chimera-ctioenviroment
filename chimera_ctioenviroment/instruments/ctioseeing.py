@@ -1,12 +1,9 @@
 import logging
 import time
-import datetime
-
 from astropy import units
 from chimera.core.exceptions import OptionConversionException
 from chimera.core.lock import lock
 import sqlalchemy
-
 from chimera.interfaces.seeingmonitor import SeeingValue
 from chimera.instruments.seeingmonitor import SeeingBase
 
@@ -32,9 +29,8 @@ class CTIOSeeing(SeeingBase):
 
         self.log = logging.getLogger(logName)
 
-
     def __start__(self):
-        self.engine = sqlalchemy.create_engine(self['uri'])
+        self.engine = sqlalchemy.create_engine(self['uri'], pool_recycle=3600)
 
     def _get_mysql(self):
         '''
@@ -57,7 +53,6 @@ class CTIOSeeing(SeeingBase):
 
         connection.close()
         return row['ut'], float(row['seeing']), float(row['airmass']), float(row['flux_s1']) + float(row['flux_s2'])
-
 
     @lock
     def _check(self):
@@ -95,7 +90,8 @@ class CTIOSeeing(SeeingBase):
             raise OptionConversionException("Invalid airmass unit %s." % unit)
 
         if self._check():
-            return SeeingValue(self.obs_time(), self._convert_units(self._airmass, units.dimensionless_unscaled, unit), unit)
+            return SeeingValue(self.obs_time(), self._convert_units(self._airmass, units.dimensionless_unscaled, unit),
+                               unit)
         else:
             return False
 
@@ -108,7 +104,6 @@ class CTIOSeeing(SeeingBase):
             return SeeingValue(self.obs_time(), self._convert_units(self._flux, units.count, unit), unit)
         else:
             return False
-
 
     def getMetadata(self, request):
 

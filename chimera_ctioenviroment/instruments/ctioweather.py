@@ -6,18 +6,21 @@ from astropy import units
 from chimera.core.exceptions import OptionConversionException
 from chimera.core.lock import lock
 from chimera.instruments.weatherstation import WeatherBase
-from chimera.interfaces.weatherstation import WSValue
+from chimera.interfaces.weatherstation import WSValue, WeatherTemperature, WeatherHumidity, WeatherPressure, WeatherWind
 import sqlalchemy
 
 
-class CTIOWeather(WeatherBase):
+
+class CTIOWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPressure, WeatherWind):
     __config__ = {"model": "CTIO BLANCO telescope weather station",
                   "check_interval": 3 * 60,  # in seconds
                   "uri": "mysql://user:password@host/database/",
                   }
 
     def __init__(self):
+
         WeatherBase.__init__(self)
+
         self._last_check = 0
         self._time_ws = None
 
@@ -54,7 +57,6 @@ class CTIOWeather(WeatherBase):
 
         connection.close()
         return row["time"], row["temp"], row["hum"], row["wspeed"], row["wdir"], row["pres"]
-
 
     @lock
     def _check(self):
@@ -140,13 +142,11 @@ class CTIOWeather(WeatherBase):
         else:
             return False
 
-    def rain(self, unit_out=units.imperial.inch/units.hour):
-        return NotImplementedError()
-
     def getMetadata(self, request):
 
         return [('ENVMOD', str(self['model']), 'Weather station Model'),
                 ('ENVTEM', self.temperature(unit_out=units.deg_C).value, '[degC] Weather station temperature'),
+                ('ENVDEW', self.dew_point(unit_out=units.deg_C).value, '[degC] Weather station dew point temperature'),
                 ('ENVHUM', self.humidity(unit_out=units.pct).value, '[%] Weather station relative humidity'),
                 ('ENVWIN', self.wind_speed(unit_out=units.m / units.s).value, '[m/s] Weather station wind speed'),
                 ('ENVDIR', self.wind_direction(unit_out=units.deg).value, '[deg] Weather station wind direction'),
