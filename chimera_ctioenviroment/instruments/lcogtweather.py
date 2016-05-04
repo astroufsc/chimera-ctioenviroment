@@ -1,7 +1,6 @@
 import json
 import re
 import threading
-
 import datetime
 import requests
 import time
@@ -53,7 +52,6 @@ class LCOGTScrapper(object):
             cookies={'pushstate': 'pushed'}
 
         )
-
         return json.loads(r.text)
 
 
@@ -83,11 +81,14 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
     def _update(self, value):
         """
-        Updates with the RASICAM results
+        Updates with the LCOGT results
         """
-        self._results = value
-        self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
-        self.log.debug('Updated LCOGT data: ' + self._results.__str__())
+        if all([v in self._results for v in
+                ['Humidity', 'Pressure', 'Temperature', 'Brightness', 'Transparency', 'Dew Point', 'Wind',
+                 'Interlock Reason']]):
+            self._results = value
+            self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
+            self.log.debug('Updated LCOGT data: ' + self._results.__str__())
 
     def _watch(self):
         """
@@ -238,4 +239,5 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
 if __name__ == '__main__':
     test = LCOGTWeather()
+    time.sleep(10)
     print test.getMetadata(None)
