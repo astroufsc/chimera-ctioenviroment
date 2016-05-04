@@ -222,6 +222,8 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         Returns True always when sun is up or when sun is down and 'OK to open' is True.
         Use with care during the day!
         """
+        if self._results is None:
+            return False
         return self._results['Interlock Reason'] == 'sun up' or self._results['OK to open']
 
     def getMetadata(self, request):
