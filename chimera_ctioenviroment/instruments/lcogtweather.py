@@ -85,7 +85,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         """
         if all([v in self._results for v in
                 ['Humidity', 'Pressure', 'Temperature', 'Brightness', 'Transparency', 'Dew Point', 'Wind',
-                 'Interlock Reason']]):
+                 'Interlock Reason']]) and value is not None:
             self._results = value
             self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
             self.log.debug('Updated LCOGT data: ' + self._results.__str__())
