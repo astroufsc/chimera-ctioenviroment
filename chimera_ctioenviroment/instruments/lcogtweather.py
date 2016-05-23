@@ -10,6 +10,7 @@ from chimera.instruments.weatherstation import WeatherBase
 import xmltodict
 from chimera.interfaces.weatherstation import WeatherTransparency, WeatherTemperature, WeatherHumidity, WeatherPressure, \
     WeatherWind, WSValue, WeatherSafety
+from requests.exceptions import ConnectTimeout
 
 wind_dir = {'E': 90.0, 'ENE': 67.5, 'ESE': 112.5, 'N': 0.0, 'NE': 45.0, 'NNE': 22.5, 'NNW': 337.5, 'NW': 315.0,
             'S': 180.0, 'SE': 135.0, 'SSE': 157.5, 'SSW': 202.5, 'SW': 225.0, 'W': 270.0, 'WNW': 292.5, 'WSW': 247.5}
@@ -31,7 +32,7 @@ class LCOGTScrapper(object):
     def scrape(self):
         client = requests.session()
 
-        data = client.get('http://telops.lcogt.net/#')
+        data = client.get('http://telops.lcogt.net/#', timeout=60)
 
         latest_comet_queue_id = int(re.findall('Telops.latest_comet_queue_id = (.+);', data.text)[0])
 
@@ -49,8 +50,8 @@ class LCOGTScrapper(object):
                 'X-Requested-With': 'XMLHttpRequest',
 
             },
-            cookies={'pushstate': 'pushed'}
-
+            cookies={'pushstate': 'pushed'},
+            timeout=30
         )
         return json.loads(r.text)
 
@@ -63,7 +64,6 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
     __config__ = dict(
         model="LCOGT weather",
-        poll_frequency=120  # in seconds
     )
 
     def __start__(self):
@@ -73,8 +73,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         self.__stop = False
         self._results = None
         self._scrapper = LCOGTScrapper()
-        p = threading.Thread(target=self._watch)
-        p.start()
+        self.setHz(1. / 120)
 
     def __stop__(self):
         self.__stop = True
@@ -90,51 +89,50 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
             self.log.debug('Updated LCOGT data: ' + self._results.__str__())
 
-    def _watch(self):
+    def control(self):
         """
         Watches LCOGT for data
         """
-        while 1:
 
-            if self.__stop:
-                return
+        if self.__stop:
+            return
 
+        try:
             data = self._scrapper.scrape()
-            value = None
-            utctime = None
+        except ConnectTimeout:
+            self.log.warn('Timeout connecting to the weather server.')
+        value = None
+        utctime = None
 
-            for val in data:
-                if 'id' in val.keys():
-                    if val['id'] == '#site-lsc-time':
-                        utctime = re.sub('.*<b>', '', val['val'])
-                        utctime = re.sub('<\/b>', '', utctime)
-                    if val['id'] == '#site-lsc-ssb-system-Weather-tip':
-                        try:
-                            value = dict([v.split(':') if isinstance(v, basestring) else [None, None] for v in
-                                          xmltodict.parse(re.sub('<\/?td(.*?)>', '',
-                                                                 val['val'].replace('&nbsp;', ' ').replace('<b>',
-                                                                                                           '').replace(
-                                                                     '</b>', '')))['div']['table']['tr']])
-                            value.pop(None)
-                            value[u'utctime'] = utctime
-                            value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
-                            for k in value.keys():
-                                if k in [u'Temperature', u'Brightness', u'Humidity', u'Pressure', u'Transparency',
-                                         u'Dew Point', u'Wind']:
-                                    value[k] = float(re.sub('(unknown)', 'nan', re.sub('[\xb0C %].*', '', value[k])))
-                                if k == 'OK to open':
-                                    value[k] = value[k] in ['True']
-                        except TypeError:
-                            self.log.debug('LCOGTWeather TypeError: ' + val['val'])
+        for val in data:
+            if 'id' in val.keys():
+                if val['id'] == '#site-lsc-time':
+                    utctime = re.sub('.*<b>', '', val['val'])
+                    utctime = re.sub('<\/b>', '', utctime)
+                if val['id'] == '#site-lsc-ssb-system-Weather-tip':
+                    try:
+                        value = dict([v.split(':') if isinstance(v, basestring) else [None, None] for v in
+                                      xmltodict.parse(re.sub('<\/?td(.*?)>', '',
+                                                             val['val'].replace('&nbsp;', ' ').replace('<b>',
+                                                                                                       '').replace(
+                                                                 '</b>', '')))['div']['table']['tr']])
+                        value.pop(None)
+                        value[u'utctime'] = utctime
+                        value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
+                        for k in value.keys():
+                            if k in [u'Temperature', u'Brightness', u'Humidity', u'Pressure', u'Transparency',
+                                     u'Dew Point', u'Wind']:
+                                value[k] = float(re.sub('(unknown)', 'nan', re.sub('[\xb0C %].*', '', value[k])))
+                            if k == 'OK to open':
+                                value[k] = value[k] in ['True']
+                    except TypeError:
+                        self.log.debug('LCOGTWeather TypeError: ' + val['val'])
 
-            if value is not None:
-                self.log.debug('LCOGTWeather.value >> ' + value.__str__())
-                self._update(value)
+        if value is not None:
+            self.log.debug('LCOGTWeather.value >> ' + value.__str__())
+            self._update(value)
 
-            for i in range(int(self['poll_frequency'])):
-                if self.__stop:
-                    return
-                time.sleep(1)
+        return True
 
     def humidity(self, unit_out=units.pct):
 
