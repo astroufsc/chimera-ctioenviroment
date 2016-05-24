@@ -5,7 +5,7 @@ setup(
     version='0.0.1',
     packages=['chimera_ctioenviroment', 'chimera_ctioenviroment.instruments'],
     scripts=[],
-    requires=['mysql', 'requests>=2.8.1', 'xmltodict'],
+    install_requires=['mysql', 'requests>=2.8.1', 'xmltodict'],
     url='http://github.com/astroufsc/chimera-ctioenviroment',
     license='GPL v2',
     author='William Schoenell',
