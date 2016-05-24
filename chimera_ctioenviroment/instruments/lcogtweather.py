@@ -10,7 +10,7 @@ from chimera.instruments.weatherstation import WeatherBase
 import xmltodict
 from chimera.interfaces.weatherstation import WeatherTransparency, WeatherTemperature, WeatherHumidity, WeatherPressure, \
     WeatherWind, WSValue, WeatherSafety
-from requests.exceptions import ConnectTimeout, ReadTimeout
+from requests.exceptions import ConnectTimeout, ReadTimeout, ConnectionError
 
 wind_dir = {'E': 90.0, 'ENE': 67.5, 'ESE': 112.5, 'N': 0.0, 'NE': 45.0, 'NNE': 22.5, 'NNW': 337.5, 'NW': 315.0,
             'S': 180.0, 'SE': 135.0, 'SSE': 157.5, 'SSW': 202.5, 'SW': 225.0, 'W': 270.0, 'WNW': 292.5, 'WSW': 247.5}
@@ -103,6 +103,8 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             self.log.warn('Timeout connecting to the weather server.')
         except ReadTimeout:
             self.log.warn('Timeout reading the weather server.')
+        except ConnectionError:
+            self.log.warn('Connection error.')
         value = None
         utctime = None
 
