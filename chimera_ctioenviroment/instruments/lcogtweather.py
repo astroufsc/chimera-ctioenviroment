@@ -102,10 +102,14 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             data = self._scrapper.scrape()
         except ConnectTimeout:
             self.log.warn('Timeout connecting to the weather server.')
+            return True
         except ReadTimeout:
             self.log.warn('Timeout reading the weather server.')
+            return True
         except ConnectionError:
             self.log.warn('Connection error.')
+            return True
+
         value = None
         utctime = None
 
@@ -133,7 +137,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                     except TypeError:
                         self.log.debug('LCOGTWeather TypeError: ' + val['val'])
 
-        if value is not None:
+        if value is not None and value['utctime'] is not None:
             self.log.debug('LCOGTWeather.value >> ' + value.__str__())
             self._update(value)
 
