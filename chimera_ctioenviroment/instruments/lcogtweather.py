@@ -34,7 +34,10 @@ class LCOGTScrapper(object):
 
         data = client.get('http://telops.lcogt.net/#', timeout=60)
 
-        latest_comet_queue_id = int(re.findall('Telops.latest_comet_queue_id = (.+);', data.text)[0])
+        try:
+            latest_comet_queue_id = int(re.findall('Telops.latest_comet_queue_id = (.+);', data.text)[0])
+        except IndexError:
+            return None
 
         r = client.post(
             url='http://telops.lcogt.net/dajaxice/netnode.refresh/',
@@ -96,7 +99,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         """
 
         if self.__stop:
-            return
+            return True
 
         try:
             data = self._scrapper.scrape()
@@ -108,6 +111,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             return True
         except ConnectionError:
             self.log.warn('Connection error.')
+            return True
+
+        if data is None:
             return True
 
         value = None
