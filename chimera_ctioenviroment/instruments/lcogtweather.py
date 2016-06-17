@@ -1,13 +1,14 @@
+# coding=utf-8
+import datetime
 import json
 import re
-import threading
-import datetime
-import requests
 import time
+
+import requests
+import xmltodict
 from astropy import units
 from chimera.core.exceptions import OptionConversionException
 from chimera.instruments.weatherstation import WeatherBase
-import xmltodict
 from chimera.interfaces.weatherstation import WeatherTransparency, WeatherTemperature, WeatherHumidity, WeatherPressure, \
     WeatherWind, WSValue, WeatherSafety
 from requests.exceptions import ConnectTimeout, ReadTimeout, ConnectionError
@@ -21,7 +22,11 @@ def wind_direction(wind_dir_letters):
     :param wind_dir_letters: Up to three letter wind direction. Example: NNW
     :return: angle: Wind angle in degrees.
     """
-    return wind_dir[wind_dir_letters]
+    try:
+        direction = wind_dir[wind_dir_letters]
+    except KeyError:
+        direction = 0
+    return direction
 
 
 class LCOGTScrapper(object):
@@ -86,7 +91,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         Updates with the LCOGT results
         """
         if all([v in value for v in
-                ['Humidity', 'Pressure', 'Temperature', 'Brightness', 'Transparency', 'Dew Point', 'Wind', 'OK to open']]):
+                ['Humidity', 'Pressure', 'Temperature', 'Transparency', 'Dew Point', 'Wind', 'OK to open']]):
             if not value.has_key('Interlock Reason'):
                 value['Interlock Reason'] = ''
             self._results = value
@@ -135,13 +140,16 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                         value[u'utctime'] = utctime
                         value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
                         for k in value.keys():
-                            if k in [u'Temperature', u'Brightness', u'Humidity', u'Pressure', u'Transparency',
-                                     u'Dew Point', u'Wind']:
-                                value[k] = float(re.sub('(unknown)', 'nan', re.sub('[\xb0C %].*', '', value[k])))
+                            if k in [u'Temperature', u'Humidity', u'Pressure', u'Transparency', u'Dew Point', u'Wind']:
+                                value[k] = float(re.sub('(Unknown)', '-99', re.sub('[\xb0C %].*', '', value[k])))
                             if k == 'OK to open':
                                 value[k] = value[k] in ['True']
                     except TypeError:
-                        self.log.debug('LCOGTWeather TypeError: ' + val['val'])
+                        self.log.debug('LCOGTWeather TypeError: ' + k + value[k] + val['val'])
+                        return True
+                    except ValueError:
+                        self.log.debug('LCOGTWeather ValueError: ' + k + val['val'])
+                        return True
 
         if value is not None and value['utctime'] is not None:
             self.log.debug('LCOGTWeather.value >> ' + value.__str__())
