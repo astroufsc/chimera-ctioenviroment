@@ -1,3 +1,4 @@
+import time
 import datetime
 import threading
 
@@ -47,8 +48,11 @@ class Rasicam(WeatherBase, WeatherTransparency):
 
             if self.__stop:
                 return
-
-            data = requests.get('http://rasicam.ctio.noao.edu/RASICAMWebService/vi/')
+            try:
+                data = requests.get('http://rasicam.ctio.noao.edu/RASICAMWebService/vi/')
+            except ConnectionError:
+                self.log.debug('Error connecting RASICAM. Sleeping 10 seconds before trying again.')
+                time.sleep(10)
 
             self.log.debug('RASICAM.text >>>' + data.text)
             if not 'Error Updating Status' in data.text:
