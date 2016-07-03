@@ -3,7 +3,6 @@ import datetime
 import json
 import re
 import time
-
 import requests
 import xmltodict
 from astropy import units
@@ -131,19 +130,18 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                     utctime = re.sub('<\/b>', '', utctime)
                 if val['id'] == '#site-lsc-ssb-system-Weather-tip':
                     try:
+                        val['val'] = re.sub('<\/?td(.*?)>', '',  # 4 - Remove <td> tags
+                                            re.sub('<\/?span[^>]*>', '',  # 3 - Remove color style tags
+                                                   re.sub('<\/?b[^>]*>', '',  # 2-  Remove bold tags
+                                                          val['val'].replace('&nbsp;', ' '))))  # 1 - move &nbsp; by ' '
                         value = dict([v.split(':') if isinstance(v, basestring) else [None, None] for v in
-                                      xmltodict.parse(re.sub('<\/?td(.*?)>', '',
-                                                             val['val'].replace('&nbsp;', ' ').replace('<b>',
-                                                                                                       '').replace(
-                                                                 '</b>', '')))['div']['table']['tr']])
-                        value.pop(None)
+                                      xmltodict.parse(val['val'])['div']['table']['tr']])
                         value[u'utctime'] = utctime
                         value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
                         for k in value.keys():
                             if k in [u'Temperature', u'Humidity', u'Pressure', u'Transparency', u'Dew Point', u'Wind']:
-                                value[k] = float(re.sub('(Unknown)', '-99',                        # 3 - Treat (Unknown)
-                                                        re.sub('[\xb0C %].*', '',                  # 2 - Del deg C unit
-                                                               re.sub('<[^>]*>', '', value[k]))))  # 1 - Del HTML tags
+                                value[k] = float(re.sub('(Unknown)', '-99',  # 2 - Treat (Unknown) as -99
+                                                        re.sub('[\xb0C %].*', '', value[k])))  # 1 - Del oC symbol
                             if k == 'OK to open':
                                 value[k] = value[k] in ['True']
                     except TypeError:
@@ -154,7 +152,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                         return True
 
         if value is not None and value['utctime'] is not None:
-            self.log.debug('LCOGTWeather.value >> ' + value.__str__())
+            # self.log.debug('LCOGTWeather.value >> ' + value.__str__())
             self._update(value)
 
         return True
