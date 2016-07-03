@@ -141,7 +141,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                         value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
                         for k in value.keys():
                             if k in [u'Temperature', u'Humidity', u'Pressure', u'Transparency', u'Dew Point', u'Wind']:
-                                value[k] = float(re.sub('(Unknown)', '-99', re.sub('[\xb0C %].*', '', value[k])))
+                                value[k] = float(re.sub('(Unknown)', '-99',                        # 3 - Treat (Unknown)
+                                                        re.sub('[\xb0C %].*', '',                  # 2 - Del deg C unit
+                                                               re.sub('<[^>]*>', '', value[k]))))  # 1 - Del HTML tags
                             if k == 'OK to open':
                                 value[k] = value[k] in ['True']
                     except TypeError:
