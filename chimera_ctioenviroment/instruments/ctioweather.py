@@ -3,6 +3,7 @@ import time
 import datetime
 import numpy as np
 from astropy import units
+from astropy.units import imperial
 from chimera.core.exceptions import OptionConversionException
 from chimera.core.lock import lock
 from chimera.instruments.weatherstation import WeatherBase
@@ -104,7 +105,7 @@ class CTIOWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPress
     def wind_speed(self, unit_out=units.meter / units.second):
 
         if self._check():
-            return WSValue(self.obs_time(), self._convert_units(self._wind_speed, (units.m / units.s), unit_out),
+            return WSValue(self.obs_time(), self._convert_units(self._wind_speed, (imperial.mile / units.hour), unit_out),
                            unit_out)
         else:
             return False
