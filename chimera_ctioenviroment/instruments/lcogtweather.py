@@ -10,6 +10,7 @@ from chimera.core.exceptions import OptionConversionException
 from chimera.instruments.weatherstation import WeatherBase
 from chimera.interfaces.weatherstation import WeatherTransparency, WeatherTemperature, WeatherHumidity, WeatherPressure, \
     WeatherWind, WSValue, WeatherSafety
+from chimera.util.image import ImageUtil
 from requests.exceptions import ConnectTimeout, ReadTimeout, ConnectionError
 
 wind_dir = {'E': 90.0, 'ENE': 67.5, 'ESE': 112.5, 'N': 0.0, 'NE': 45.0, 'NNE': 22.5, 'NNW': 337.5, 'NW': 315.0,
@@ -249,15 +250,18 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
     def getMetadata(self, request):
 
-        return [('ENVMOD', str(self['model']), 'Weather station Model'),
-                ('ENVTEM', self.temperature(unit_out=units.deg_C).value, '[degC] Weather station temperature'),
-                ('ENVDEW', self.dew_point(unit_out=units.deg_C).value, '[degC] Weather station dew point temperature'),
-                ('ENVHUM', self.humidity(unit_out=units.pct).value, '[%] Weather station relative humidity'),
-                ('ENVWIN', self.wind_speed(unit_out=units.m / units.s).value, '[m/s] Weather station wind speed'),
-                ('ENVDIR', self.wind_direction(unit_out=units.deg).value, '[deg] Weather station wind direction'),
-                ('ENVPRE', self.pressure(unit_out=units.cds.mmHg).value, '[mmHg] Weather station air pressure'),
-                ('ENVDAT', self._results['utctime'], 'UT time of the meteo observation')
-                ]
+        try:
+            return [('ENVMOD', str(self['model']), 'Weather station Model'),
+                    ('ENVTEM', self.temperature(unit_out=units.deg_C).value, '[degC] Weather station temperature'),
+                    ('ENVDEW', self.dew_point(unit_out=units.deg_C).value, '[degC] Weather station dew point temperature'),
+                    ('ENVHUM', self.humidity(unit_out=units.pct).value, '[%] Weather station relative humidity'),
+                    ('ENVWIN', self.wind_speed(unit_out=units.m / units.s).value, '[m/s] Weather station wind speed'),
+                    ('ENVDIR', self.wind_direction(unit_out=units.deg).value, '[deg] Weather station wind direction'),
+                    ('ENVPRE', self.pressure(unit_out=units.cds.mmHg).value, '[mmHg] Weather station air pressure'),
+                    ('ENVDAT', ImageUtil.formatDate(self._results['utctime']), 'UT time of the meteo observation')
+                    ]
+        except AttributeError:
+            return []
 
 
 if __name__ == '__main__':
