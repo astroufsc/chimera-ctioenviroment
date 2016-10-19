@@ -37,7 +37,7 @@ class LCOGTScrapper(object):
     def scrape(self):
         client = requests.session()
 
-        data = client.get('http://telops.lcogt.net/#', timeout=60)
+        data = client.get('http://telops.lco.global/#', timeout=60)
 
         try:
             latest_comet_queue_id = int(re.findall('Telops.latest_comet_queue_id = (.+);', data.text)[0])
@@ -45,7 +45,7 @@ class LCOGTScrapper(object):
             return None
 
         r = client.post(
-            url='http://telops.lcogt.net/dajaxice/netnode.refresh/',
+            url='http://telops.lco.global/dajaxice/netnode.refresh/',
             data={'argv': json.dumps({"latest": latest_comet_queue_id})},
             headers={
                 'Accept': '*/*',
@@ -53,7 +53,7 @@ class LCOGTScrapper(object):
                 "Content-Type": "application/x-www-form-urlencoded",
                 'Host': 'telops.lcogt.net',
                 "Origin": "http://telops.lcogt.net",
-                "Referer": "http://telops.lcogt.net/",
+                "Referer": "http://telops.lco.global/",
                 'X-CSRFToken': None,
                 'X-Requested-With': 'XMLHttpRequest',
 
