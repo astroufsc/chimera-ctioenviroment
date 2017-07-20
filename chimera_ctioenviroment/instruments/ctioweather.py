@@ -1,15 +1,15 @@
 import logging
 import time
-import datetime
+
 import numpy as np
+import sqlalchemy
 from astropy import units
 from astropy.units import imperial
 from chimera.core.exceptions import OptionConversionException
 from chimera.core.lock import lock
 from chimera.instruments.weatherstation import WeatherBase
 from chimera.interfaces.weatherstation import WSValue, WeatherTemperature, WeatherHumidity, WeatherPressure, WeatherWind
-import sqlalchemy
-
+from chimera.util.image import ImageUtil
 
 
 class CTIOWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPressure, WeatherWind):
@@ -152,7 +152,7 @@ class CTIOWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPress
                 ('ENVWIN', self.wind_speed(unit_out=units.m / units.s).value, '[m/s] Weather station wind speed'),
                 ('ENVDIR', self.wind_direction(unit_out=units.deg).value, '[deg] Weather station wind direction'),
                 ('ENVPRE', self.pressure(unit_out=units.cds.mmHg).value, '[mmHg] Weather station air pressure'),
-                ('ENVDAT', self.obs_time(), 'UT time of the meteo observation')
+                ('ENVDAT', ImageUtil.formatDate(self.obs_time()), 'UT time of the meteo observation')
                 ]
 
 
