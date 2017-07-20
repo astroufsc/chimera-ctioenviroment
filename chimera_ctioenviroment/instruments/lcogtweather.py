@@ -61,7 +61,6 @@ class LCOGTScrapper(object):
             cookies={'pushstate': 'pushed'},
             timeout=30
         )
-        print r.text
         return json.loads(r.text)
 
 
