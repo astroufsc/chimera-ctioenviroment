@@ -107,6 +107,9 @@ class CTIOSeeing(SeeingBase):
 
     def getMetadata(self, request):
 
+        if not self._check():
+            return 
+
         return [('SEEMOD', str(self['model']), 'Seeing monitor Model'),
                 ('SEETYP', str(self['type']), 'Seeing monitor type'),
                 ('SEEVAL', self.seeing(unit=units.arcsec).value, '[arcsec] Seeing value'),
