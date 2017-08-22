@@ -96,7 +96,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
                 value['Interlock Reason'] = ''
             self._results = value
             self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
-            self.log.debug('Updated LCOGT data: ' + self._results.__str__())
+            # self.log.debug('Updated LCOGT data: ' + self._results.__str__())
 
     def control(self):
         """
