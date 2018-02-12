@@ -146,7 +146,7 @@ class CTIOWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPress
     def getMetadata(self, request):
 
         if not self._check():
-            return
+            return []
 
         return [('ENVMOD', str(self['model']), 'Weather station Model'),
                 ('ENVTEM', self.temperature(unit_out=units.deg_C).value, '[degC] Weather station temperature'),
