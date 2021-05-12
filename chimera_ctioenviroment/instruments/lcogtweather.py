@@ -34,10 +34,9 @@ class LCOGTScrapper(object):
     Web scrapper for the LCOGT telops page
     """
 
-    def __init__(self):
-        self.results = dict()
-
     def scrape(self):
+
+        results = dict()
 
         _base_url = "https://weather-api.lco.global/query?site=lsc&datumname="
         urls = {'humidity': _base_url + "Weather%20Humidity%20Value",
@@ -51,14 +50,14 @@ class LCOGTScrapper(object):
 
         for key in urls.keys():
             try:
-                self.results[key] = requests.get(urls[key]).json()[-1]
+                results[key] = requests.get(urls[key]).json()[-1]
             except:
-                self.results[key] = {u'TimeStamp': u'',
+                results[key] = {u'TimeStamp': u'',
                                      u'TimeStampMeasured': u'',
                                      u'Value': None,
                                      u'ValueString': u''}
 
-        return self.results
+        return results
 
 
 class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPressure,
@@ -93,7 +92,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             if not value.has_key('Interlock Reason'):
                 value['Interlock Reason'] = ''
             self._results = value
-            self._results['utctime'] = datetime.datetime.strptime(value['temperature']['TimeStamp'].replace('/', '-'), '%Y-%m-%d %H:%M:%S')
+            self._results['utctime'] = datetime.datetime.strptime(value['temperature']['TimeStamp'], '%Y/%m/%d %H:%M:%S')
             # self.log.debug('Updated LCOGT data: ' + self._results.__str__())
 
     def control(self):
@@ -234,7 +233,6 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
 
 if __name__ == '__main__':
-    # test = LCOGTScrapper()
     test = LCOGTWeather()
     time.sleep(10)
     test.__start__()
