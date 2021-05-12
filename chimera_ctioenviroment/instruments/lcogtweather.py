@@ -9,7 +9,7 @@ from astropy import units
 from chimera.core.exceptions import OptionConversionException
 from chimera.instruments.weatherstation import WeatherBase
 from chimera.interfaces.weatherstation import WeatherTransparency, WeatherTemperature, WeatherHumidity, WeatherPressure, \
-    WeatherWind, WSValue, WeatherSafety
+    WeatherWind, WSValue
 from chimera.util.image import ImageUtil
 from requests.exceptions import ConnectTimeout, ReadTimeout, ConnectionError
 
@@ -34,38 +34,35 @@ class LCOGTScrapper(object):
     Web scrapper for the LCOGT telops page
     """
 
+    def __init__(self):
+        self.results = dict()
+
     def scrape(self):
-        client = requests.session()
 
-        data = client.get('https://telops.lco.global/#', timeout=60)
+        _base_url = "https://weather-api.lco.global/query?site=lsc&datumname="
+        urls = {'humidity': _base_url + "Weather%20Humidity%20Value",
+                'temperature': _base_url + "Weather%20Air%20Temperature%20Value",
+                'wind_speed': _base_url + "Weather%20Wind%20Speed%20Value",
+                'wind_direction': _base_url + "Weather%20Wind%20Direction%20Value",
+                'dew_point': _base_url + "Weather%20Dew%20Point%20Value",
+                'pressure': _base_url + "Weather%20Barometric%20Pressure%20Value",
+                'sky_transparency': _base_url + "Boltwood%20Transparency%20Measure"
+                }
 
-        try:
-            latest_comet_queue_id = int(re.findall('Telops.latest_comet_queue_id = (.+);', data.text)[0])
-        except IndexError:
-            return None
+        for key in urls.keys():
+            try:
+                self.results[key] = requests.get(urls[key]).json()[-1]
+            except:
+                self.results[key] = {u'TimeStamp': u'',
+                                     u'TimeStampMeasured': u'',
+                                     u'Value': None,
+                                     u'ValueString': u''}
 
-        r = client.post(
-            url='https://telops.lco.global/dajaxice/netnode.refresh/',
-            data={'argv': json.dumps({"latest": latest_comet_queue_id})},
-            headers={
-                'Accept': '*/*',
-                'Accept-Encoding': 'gzip, deflate',
-                "Content-Type": "application/x-www-form-urlencoded",
-                'Host': 'telops.lco.global',
-                "Origin": "https://telops.lco.global/",
-                "Referer": "https://telops.lco.global/",
-                'X-CSRFToken': None,
-                'X-Requested-With': 'XMLHttpRequest',
-
-            },
-            cookies={'pushstate': 'pushed'},
-            timeout=30
-        )
-        return json.loads(r.text)
+        return self.results
 
 
-class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPressure, WeatherWind, WeatherTransparency,
-                   WeatherSafety):
+class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPressure,
+                   WeatherWind, WeatherTransparency):
     """
     Instrument that gets information from LCOGT web page
     """
@@ -90,12 +87,13 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         """
         Updates with the LCOGT results
         """
-        if all([v in value for v in
-                ['Humidity', 'Pressure', 'Temperature', 'Transparency', 'Dew Point', 'Wind', 'OK to open']]):
+        if all([v in value.keys() for v in
+                ['humidity', 'pressure', 'temperature', 'sky_transparency', 'dew_point',
+                 'wind_speed', 'wind_direction']]):
             if not value.has_key('Interlock Reason'):
                 value['Interlock Reason'] = ''
             self._results = value
-            self._results['utctime'] = datetime.datetime.strptime(value['utctime'], '%Y-%m-%d %H:%M UTC')
+            self._results['utctime'] = datetime.datetime.strptime(value['temperature']['TimeStamp'].replace('/', '-'), '%Y-%m-%d %H:%M:%S')
             # self.log.debug('Updated LCOGT data: ' + self._results.__str__())
 
     def control(self):
@@ -107,7 +105,7 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             return True
 
         try:
-            data = self._scrapper.scrape()
+            value = self._scrapper.scrape()
         except ConnectTimeout:
             self.log.warn('Timeout connecting to the weather server.')
             return True
@@ -118,45 +116,12 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             self.log.warn('Connection error.')
             return True
 
-        if data is None:
+        if value is None:
+            return True
+        else:
+            self._update(value)
             return True
 
-        value = None
-        utctime = None
-
-        for val in data:
-            if 'id' in val.keys():
-                if val['id'] == '#site-lsc-time':
-                    utctime = re.sub('.*<b>', '', val['val'])
-                    utctime = re.sub('<\/b>', '', utctime)
-                if val['id'] == '#site-lsc-ssb-system-Weather-tip':
-                    try:
-                        val['val'] = re.sub('<\/?td(.*?)>', '',  # 4 - Remove <td> tags
-                                            re.sub('<\/?span[^>]*>', '',  # 3 - Remove color style tags
-                                                   re.sub('<\/?b[^>]*>', '',  # 2-  Remove bold tags
-                                                          val['val'].replace('&nbsp;', ' '))))  # 1 - move &nbsp; by ' '
-                        value = dict([v.split(':') if isinstance(v, basestring) else [None, None] for v in
-                                      xmltodict.parse(val['val'])['div']['table']['tr']])
-                        value[u'utctime'] = utctime
-                        value[u'Wind Dir'] = wind_direction(value[u'Wind'].split(' ')[-1])
-                        for k in value.keys():
-                            if k in [u'Temperature', u'Humidity', u'Pressure', u'Transparency', u'Dew Point', u'Wind']:
-                                value[k] = float(re.sub('(Unknown)', '-99',  # 2 - Treat (Unknown) as -99
-                                                        re.sub('[\xb0C %].*', '', value[k])))  # 1 - Del oC symbol
-                            if k == 'OK to open':
-                                value[k] = value[k] in ['True']
-                    except TypeError:
-                        self.log.debug('LCOGTWeather TypeError: ' + k + value[k] + val['val'])
-                        return True
-                    except ValueError:
-                        self.log.debug('LCOGTWeather ValueError: ' + k + val['val'])
-                        return True
-
-        if value is not None and value['utctime'] is not None:
-            # self.log.debug('LCOGTWeather.value >> ' + value.__str__())
-            self._update(value)
-
-        return True
 
     def humidity(self, unit_out=units.pct):
 
@@ -165,8 +130,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
         if unit_out not in self.__accepted_humidity_units__:
             raise OptionConversionException("Invalid humidity unit %s." % unit_out)
-
-        return WSValue(self._results['utctime'], self._convert_units(self._results['Humidity'], units.pct, unit_out),
+        
+        return WSValue(self._results['utctime'],
+                       self._convert_units(self._results['humidity']['Value'], units.pct, unit_out),
                        unit_out)
 
     def temperature(self, unit_out=units.Celsius):
@@ -178,7 +144,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             raise OptionConversionException("Invalid temperature unit %s." % unit_out)
 
         return WSValue(self._results['utctime'],
-                       self._convert_units(self._results['Temperature'], units.Celsius, unit_out), unit_out)
+                       self._convert_units(self._results['temperature']['Value'],
+                                           units.Celsius, unit_out),
+                       unit_out)
 
     def wind_speed(self, unit_out=units.meter / units.second):
 
@@ -189,7 +157,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             raise OptionConversionException("Invalid speed unit %s." % unit_out)
 
         return WSValue(self._results['utctime'],
-                       self._convert_units(self._results['Wind'], (units.m / units.s), unit_out), unit_out)
+                       self._convert_units(self._results['wind_speed']['Value'],
+                                           (units.m / units.s), unit_out),
+                       unit_out)
 
     def wind_direction(self, unit_out=units.degree):
 
@@ -199,7 +169,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
         if unit_out not in self.__accepted_direction_unit__:
             raise OptionConversionException("Invalid speed unit %s." % unit_out)
 
-        return WSValue(self._results['utctime'], self._convert_units(self._results['Wind Dir'], units.deg, unit_out),
+        return WSValue(self._results['utctime'],
+                       self._convert_units(self._results['wind_direction']['Value'],
+                                           units.deg, unit_out),
                        unit_out)
 
     def dew_point(self, unit_out=units.Celsius):
@@ -215,7 +187,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             raise OptionConversionException("Invalid dew point unit %s." % unit_out)
 
         return WSValue(self._results['utctime'],
-                       self._convert_units(self._results['Dew Point'], units.Celsius, unit_out), unit_out)
+                       self._convert_units(self._results['dew_point']['Value'],
+                                           units.Celsius, unit_out),
+                       unit_out)
 
     def pressure(self, unit_out=units.Pa):
 
@@ -226,7 +200,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             raise OptionConversionException("Invalid pressure unit %s." % unit_out)
 
         return WSValue(self._results['utctime'],
-                       self._convert_units(self._results['Pressure'], units.cds.mmHg, unit_out), unit_out)
+                       self._convert_units(self._results['pressure']['Value'],
+                                           units.cds.mmHg, unit_out),
+                       unit_out)
 
     def sky_transparency(self, unit_out=units.pct):
 
@@ -237,16 +213,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
             raise OptionConversionException("Invalid sky transparency unit %s." % unit_out)
 
         return WSValue(self._results['utctime'],
-                       self._convert_units(self._results['Transparency'], units.pct, unit_out), unit_out)
-
-    def okToOpen(self):
-        """
-        Returns True always when sun is up or when sun is down and 'OK to open' is True.
-        Use with care during the day!
-        """
-        if self._results is None:
-            return False
-        return self._results['Interlock Reason'] == 'sun up' or self._results['OK to open']
+                       self._convert_units(self._results['sky_transparency']['Value'],
+                                           units.pct, unit_out),
+                       unit_out)
 
     def getMetadata(self, request):
 
@@ -265,6 +234,9 @@ class LCOGTWeather(WeatherBase, WeatherTemperature, WeatherHumidity, WeatherPres
 
 
 if __name__ == '__main__':
+    # test = LCOGTScrapper()
     test = LCOGTWeather()
     time.sleep(10)
+    test.__start__()
+    test.control()
     print test.getMetadata(None)
